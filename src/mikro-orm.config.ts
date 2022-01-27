@@ -1,7 +1,7 @@
 import path from 'path'
 import { MikroORM } from '@mikro-orm/core'
 
-import Post from './entities/Post'
+import { Post, User } from './entities/'
 import { __prod__ } from './constants'
 
 export default {
@@ -15,6 +15,6 @@ export default {
 		path: path.join(__dirname, './migrations'),
 		pattern: /^[\w-]+\d+\.[tj]s$/
 	},
-	entities: [Post],
+	entities: [Post, User],
 	debug: !__prod__
 } as Parameters<typeof MikroORM.init>[0]
