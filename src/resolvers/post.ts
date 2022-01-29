@@ -4,7 +4,7 @@ import { Post } from '../entities'
 import { MyContext } from '../types'
 
 @Resolver()
-export class PostResolver {
+export default class PostResolver {
 	@Query(() => [Post])
 	posts(
 		@Ctx() {em}: MyContext
