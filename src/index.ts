@@ -6,6 +6,7 @@ import express from 'express'
 import redis from 'redis'
 import session from 'express-session'
 import connectRedis, { Client } from 'connect-redis'
+import cors from 'cors'
 
 import { MikroORM } from '@mikro-orm/core'
 import microConfig from './mikro-orm.config'
@@ -29,6 +30,10 @@ const main = async () => {
 	}) as unknown as Client
 
 	const app = express()
+	app.use(cors({
+		origin: 'http://localhost:3000',
+		credentials: true
+	}))
 	app.use(session({
 		name: 'qid',
 		store: new RedisStore({
@@ -54,7 +59,9 @@ const main = async () => {
 	})
 
 	await apolloServer.start()
-	apolloServer.applyMiddleware({app})
+	apolloServer.applyMiddleware({
+		app, cors: false
+	})
 	app.get('/', (_, res) => {
 		res.send('Hello')
 	})
