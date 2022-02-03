@@ -3,6 +3,7 @@ import argon2 from 'argon2'
 
 import { User } from '../entities'
 import { MyContext } from '../types'
+import { COOKIE_NAME } from '../constants'
 
 @InputType()
 class UsernamePasswordInput {
@@ -32,7 +33,7 @@ class UserResponse {
 export default class UserResolver {
 	@Query(() => User, {nullable: true})
 	async me(@Ctx() {req, em}: MyContext) {
-		if(!req.session.userId) {
+		if (!req.session.userId) {
 			return null
 		}
 
@@ -69,7 +70,7 @@ export default class UserResolver {
 		try {
 			await em.persistAndFlush(user)
 		} catch (e) {
-			if(e.code === '23505' || e.detail.includes('already exists')) {
+			if (e.code === '23505' || e.detail.includes('already exists')) {
 				return {
 					errors: [{
 						field: 'username',
@@ -115,5 +116,20 @@ export default class UserResolver {
 		return {
 			user
 		}
+	}
+
+	@Mutation(() => Boolean)
+	logout(
+		@Ctx() {req, res}: MyContext
+	) {
+		return new Promise(resolve => req.session.destroy(err => {
+			res.clearCookie(COOKIE_NAME)
+			if (err) {
+				console.log(err)
+				resolve(false)
+				return
+			}
+			resolve(true)
+		}))
 	}
 }

@@ -15,7 +15,7 @@ import { ApolloServer } from 'apollo-server-express'
 import { buildSchema } from 'type-graphql'
 
 import { PostResolver, UserResolver } from './resolvers'
-import { __prod__ } from './constants'
+import { __prod__, ALLOWED_ORIGINS, BLOCKED_BY_CORS_MESSAGE, COOKIE_NAME } from './constants'
 import { MyContext } from './types'
 
 const main = async () => {
@@ -31,11 +31,17 @@ const main = async () => {
 
 	const app = express()
 	app.use(cors({
-		origin: 'http://localhost:3000',
+		origin: function (origin, callback) {
+			if (!origin) return callback(null, true)
+			if (ALLOWED_ORIGINS.indexOf(origin) === -1) {
+				return callback(new Error(BLOCKED_BY_CORS_MESSAGE), false)
+			}
+			return callback(null, true)
+		},
 		credentials: true
 	}))
 	app.use(session({
-		name: 'qid',
+		name: COOKIE_NAME,
 		store: new RedisStore({
 			client: redisClient,
 			disableTouch: true
