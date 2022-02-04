@@ -2,10 +2,9 @@ import 'dotenv/config'
 import 'reflect-metadata'
 
 import express from 'express'
-// @ts-ignore
-import redis from 'redis'
+import Redis from 'ioredis'
 import session from 'express-session'
-import connectRedis, { Client } from 'connect-redis'
+import connectRedis from 'connect-redis'
 import cors from 'cors'
 
 import { MikroORM } from '@mikro-orm/core'
@@ -23,11 +22,11 @@ const main = async () => {
 	await orm.getMigrator().up()
 
 	const RedisStore = connectRedis(session)
-	const redisClient: Client = redis.createClient({
+	const redis = new Redis({
 		host: 'localhost',
 		port: 6379,
 		db: 0
-	}) as unknown as Client
+	})
 
 	const app = express()
 	app.use(cors({
@@ -43,7 +42,7 @@ const main = async () => {
 	app.use(session({
 		name: COOKIE_NAME,
 		store: new RedisStore({
-			client: redisClient,
+			client: redis,
 			disableTouch: true
 		}),
 		cookie: {
@@ -61,7 +60,7 @@ const main = async () => {
 			resolvers: [PostResolver, UserResolver],
 			validate: false
 		}),
-		context: ({req, res}): MyContext => ({em: orm.em, req, res})
+		context: ({req, res}): MyContext => ({em: orm.em, req, res, redis})
 	})
 
 	await apolloServer.start()
