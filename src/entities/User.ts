@@ -21,6 +21,10 @@ export default class User {
 	username!: string
 
 	@Field(() => String)
+	@Property({type: 'text', unique: true})
+	email!: string
+
+	@Field(() => String)
 	@Property({type: 'text'})
 	password!: string
 }
