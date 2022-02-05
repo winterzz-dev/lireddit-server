@@ -1,3 +1,4 @@
+import { getConnection } from 'typeorm'
 import { Arg, Ctx, Field, Mutation, ObjectType, Query, Resolver } from 'type-graphql'
 import argon2 from 'argon2'
 import { randomUUID } from 'crypto'
@@ -31,7 +32,7 @@ export default class UserResolver {
 	async changePassword(
 		@Arg('token') token: string,
 		@Arg('newPassword') newPassword: string,
-		@Ctx() {redis, em, req}: MyContext
+		@Ctx() {redis, req}: MyContext
 	): Promise<UserResponse> {
 		if (newPassword.length <= 3) {
 			return {
@@ -50,8 +51,9 @@ export default class UserResolver {
 				}]
 			}
 		}
-		const user = await em.findOne(User, {id: parseInt(userId)})
-		if(!user) {
+		const userIdNum = parseInt(userId)
+		const user = await User.findOne(userIdNum)
+		if (!user) {
 			return {
 				errors: [{
 					field: 'token',
@@ -59,8 +61,7 @@ export default class UserResolver {
 				}]
 			}
 		}
-		user.password = await argon2.hash(newPassword)
-		await em.persistAndFlush(user)
+		await User.update({id: userIdNum}, {password: await argon2.hash(newPassword)})
 		await redis.del(`${FORGET_PASSWORD_PREFIX}${token}`)
 		req.session.userId = user.id
 		return {user}
@@ -69,9 +70,9 @@ export default class UserResolver {
 	@Mutation(() => Boolean)
 	async forgotPassword(
 		@Arg('email') email: string,
-		@Ctx() {em, redis}: MyContext
+		@Ctx() {redis}: MyContext
 	): Promise<boolean> {
-		const user = await em.findOne(User, {email})
+		const user = await User.findOne({where: {email}})
 		if (!user) {
 			return true
 		}
@@ -82,31 +83,32 @@ export default class UserResolver {
 	}
 
 	@Query(() => User, {nullable: true})
-	async me(@Ctx() {req, em}: MyContext) {
+	async me(@Ctx() {req}: MyContext) {
 		if (!req.session.userId) {
 			return null
 		}
 
-		return await em.findOne(User, {id: req.session.userId})
+		return await User.findOne(req.session.userId)
 	}
 
 	@Mutation(() => UserResponse)
 	async register(
 		@Arg('options', () => UsernamePasswordInput) options: UsernamePasswordInput,
-		@Ctx() {em, req}: MyContext
+		@Ctx() {req}: MyContext
 	): Promise<UserResponse> {
 		const errors = validateRegister(options)
 		if (errors) {
 			return {errors}
 		}
 		const hashedPassword = await argon2.hash(options.password)
-		const user = em.create(User, {
-			username: options.username,
-			email: options.email,
-			password: hashedPassword
-		})
+		let user
 		try {
-			await em.persistAndFlush(user)
+			const result = await getConnection().createQueryBuilder().insert().into(User).values({
+				username: options.username,
+				email: options.email,
+				password: hashedPassword
+			}).returning('*').execute()
+			user = result.raw[0]
 		} catch (e) {
 			if (e.code === '23505' || e.detail.includes('already exists')) {
 				return {
@@ -119,7 +121,6 @@ export default class UserResolver {
 		}
 
 		req.session!.userId = user.id
-
 		return {
 			user
 		}
@@ -129,12 +130,12 @@ export default class UserResolver {
 	async login(
 		@Arg('usernameOrEmail') usernameOrEmail: string,
 		@Arg('password') password: string,
-		@Ctx() {em, req}: MyContext
+		@Ctx() {req}: MyContext
 	): Promise<UserResponse> {
-		const user = await em.findOne(User,
+		const user = await User.findOne(
 			usernameOrEmail.includes('@') ?
-				{email: usernameOrEmail} :
-				{username: usernameOrEmail}
+				{where: {email: usernameOrEmail}} :
+				{where: {username: usernameOrEmail}}
 		)
 		if (!user) {
 			return {
