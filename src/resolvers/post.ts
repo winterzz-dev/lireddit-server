@@ -1,48 +1,40 @@
-import { Arg, Ctx, Int, Mutation, Query, Resolver } from 'type-graphql'
+import { Arg, Int, Mutation, Query, Resolver } from 'type-graphql'
 
 import { Post } from '../entities'
-import { MyContext } from '../types'
 
 @Resolver()
 export default class PostResolver {
 	@Query(() => [Post])
-	posts(
-		@Ctx() {em}: MyContext
-	): Promise<Post[]> {
-		return em.find(Post, {})
+	posts(): Promise<Post[]> {
+		return Post.find({})
 	}
 
 	@Query(() => Post, {nullable: true})
 	post(
-		@Arg('id', () => Int) id: number,
-		@Ctx() {em}: MyContext
-	): Promise<Post | null> {
-		return em.findOne(Post, {id})
+		@Arg('id', () => Int) id: number
+	): Promise<Post | undefined> {
+		return Post.findOne(id)
 	}
 
 	@Mutation(() => Post)
 	async createPost(
-		@Arg('title', () => String) title: string,
-		@Ctx() {em}: MyContext
+		@Arg('title', () => String) title: string
 	): Promise<Post> {
-		const post = em.create(Post, {title})
-		await em.persistAndFlush(post)
-		return post
+		return Post.create({title}).save()
 	}
 
 	@Mutation(() => Post, {nullable: true})
 	async updatePost(
 		@Arg('id', () => Int) id: number,
 		@Arg('title', () => String, {nullable: true}) title: string,
-		@Ctx() {em}: MyContext
 	): Promise<Post | null> {
-		const post = await em.findOne(Post, {id})
-		if(!post) {
+		const post = await Post.findOne(id)
+		if (!post) {
 			return null
 		}
-		if(title) {
+		if (title) {
 			post.title = title
-			await em.persistAndFlush(post)
+			await Post.update({id}, {title})
 		}
 		return post
 	}
@@ -50,13 +42,8 @@ export default class PostResolver {
 	@Mutation(() => Boolean)
 	async deletePost(
 		@Arg('id', () => Int) id: number,
-		@Ctx() {em}: MyContext
 	): Promise<boolean> {
-		try {
-			await em.nativeDelete(Post, {id})
-			return true
-		} catch (e) {
-			return false
-		}
+		await Post.delete(id)
+		return true
 	}
 }

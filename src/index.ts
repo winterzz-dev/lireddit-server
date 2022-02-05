@@ -7,8 +7,7 @@ import session from 'express-session'
 import connectRedis from 'connect-redis'
 import cors from 'cors'
 
-import { MikroORM } from '@mikro-orm/core'
-import microConfig from './mikro-orm.config'
+import {createConnection} from 'typeorm'
 
 import { ApolloServer } from 'apollo-server-express'
 import { buildSchema } from 'type-graphql'
@@ -16,10 +15,18 @@ import { buildSchema } from 'type-graphql'
 import { PostResolver, UserResolver } from './resolvers'
 import { __prod__, ALLOWED_ORIGINS, BLOCKED_BY_CORS_MESSAGE, COOKIE_NAME } from './constants'
 import { MyContext } from './types'
+import { Post, User } from './entities'
 
 const main = async () => {
-	const orm = await MikroORM.init(microConfig)
-	await orm.getMigrator().up()
+	await createConnection({
+		type: 'postgres',
+		database: process.env.DB_NAME,
+		username: process.env.DB_USER,
+		password: process.env.DB_PASSWORD,
+		logging: true,
+		synchronize: true,
+		entities: [Post, User]
+	})
 
 	const RedisStore = connectRedis(session)
 	const redis = new Redis({
@@ -60,7 +67,7 @@ const main = async () => {
 			resolvers: [PostResolver, UserResolver],
 			validate: false
 		}),
-		context: ({req, res}): MyContext => ({em: orm.em, req, res, redis})
+		context: ({req, res}): MyContext => ({req, res, redis})
 	})
 
 	await apolloServer.start()
