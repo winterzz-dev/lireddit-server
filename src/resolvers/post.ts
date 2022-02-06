@@ -1,4 +1,5 @@
 import { Arg, Ctx, Field, InputType, Int, Mutation, Query, Resolver, UseMiddleware } from 'type-graphql'
+import { getConnection } from 'typeorm'
 
 import { isAuth } from '../middleware/isAuth'
 import { Post } from '../entities'
@@ -16,8 +17,18 @@ class PostInput {
 @Resolver()
 export default class PostResolver {
 	@Query(() => [Post])
-	posts(): Promise<Post[]> {
-		return Post.find({})
+	async posts(
+		@Arg('limit', () => Int) limit: number,
+		@Arg('cursor', () => String, {nullable: true}) cursor: string | null
+	): Promise<Post[]> {
+		const realLimit = Math.min(50, limit)
+		const qb = getConnection()
+			.getRepository(Post)
+			.createQueryBuilder('p')
+			.orderBy('"createdAt"', 'DESC')
+			.take(realLimit)
+		cursor && qb.where('"createdAt" < :cursor', {cursor: new Date(parseInt(cursor))})
+		return await qb.getMany()
 	}
 
 	@Query(() => Post, {nullable: true})
@@ -42,7 +53,7 @@ export default class PostResolver {
 	@Mutation(() => Post, {nullable: true})
 	async updatePost(
 		@Arg('id', () => Int) id: number,
-		@Arg('title', () => String, {nullable: true}) title: string,
+		@Arg('title', () => String, {nullable: true}) title: string
 	): Promise<Post | null> {
 		const post = await Post.findOne(id)
 		if (!post) {
@@ -57,7 +68,7 @@ export default class PostResolver {
 
 	@Mutation(() => Boolean)
 	async deletePost(
-		@Arg('id', () => Int) id: number,
+		@Arg('id', () => Int) id: number
 	): Promise<boolean> {
 		await Post.delete(id)
 		return true
