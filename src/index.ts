@@ -1,6 +1,7 @@
 import 'dotenv/config'
 import 'reflect-metadata'
 
+import path from 'path'
 import express from 'express'
 import Redis from 'ioredis'
 import session from 'express-session'
@@ -17,16 +18,19 @@ import { __prod__, ALLOWED_ORIGINS, BLOCKED_BY_CORS_MESSAGE, COOKIE_NAME } from 
 import { MyContext } from './types'
 import { Post, User } from './entities'
 
+//rerun
 const main = async () => {
-	await createConnection({
+	const conn = await createConnection({
 		type: 'postgres',
 		database: process.env.DB_NAME,
 		username: process.env.DB_USER,
 		password: process.env.DB_PASSWORD,
 		logging: true,
 		synchronize: true,
+		migrations: [path.join(__dirname, './migrations/*')],
 		entities: [Post, User]
 	})
+	await conn.runMigrations()
 
 	const RedisStore = connectRedis(session)
 	const redis = new Redis({
