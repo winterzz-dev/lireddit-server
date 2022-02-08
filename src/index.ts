@@ -16,7 +16,7 @@ import { buildSchema } from 'type-graphql'
 import { PostResolver, UserResolver } from './resolvers'
 import { __prod__, ALLOWED_ORIGINS, BLOCKED_BY_CORS_MESSAGE, COOKIE_NAME } from './constants'
 import { MyContext } from './types'
-import { Post, User } from './entities'
+import { Post, User, Updoot } from './entities'
 
 //rerun
 const main = async () => {
@@ -28,7 +28,7 @@ const main = async () => {
 		logging: true,
 		synchronize: true,
 		migrations: [path.join(__dirname, './migrations/*')],
-		entities: [Post, User]
+		entities: [Post, User, Updoot]
 	})
 	await conn.runMigrations()
 
