@@ -14,7 +14,7 @@ import {
 import { getConnection } from 'typeorm'
 
 import { isAuth } from '../middleware/isAuth'
-import { Post } from '../entities'
+import { Post, Updoot } from '../entities'
 import { MyContext } from '../types'
 
 @InputType()
@@ -49,17 +49,23 @@ export default class PostResolver {
 		@Arg('value', () => Int) value: number,
 		@Ctx() {req}: MyContext
 	) {
+		const userId = 1 || req.session.userId
 		const isUpdoot = value !== -1
 		const computedValue = isUpdoot ? 1 : -1
-		const userId = 1 || req.session.userId
-		await getConnection().query(`
-			START TRANSACTION;
-				INSERT INTO updoot("userId", "postId", "value") VALUES (${userId}, ${postId}, ${computedValue});
-				UPDATE post
-				SET points = points + ${computedValue}
-				WHERE id = ${postId};
-            COMMIT;
-		`)
+
+		const updoot = await Updoot.findOne({where: {postId, userId}})
+
+		if(updoot && updoot.value !== computedValue) {
+			await getConnection().transaction(async tm => {
+				await tm.query(`UPDATE updoot SET value = $1 WHERE "postId" = $2 AND "userId" = $3`, [computedValue, postId, userId])
+				await tm.query(`UPDATE post SET points = points + $1 WHERE id = $2`, [ 2 * computedValue, postId])
+			})
+		} else if(!updoot){
+			await getConnection().transaction(async tm => {
+				await tm.query(`INSERT INTO updoot("userId", "postId", "value") VALUES ($1, $2, $3);`, [userId, postId, computedValue])
+				await tm.query(`UPDATE post SET points = points + $1 WHERE id = $2`, [computedValue, postId])
+			})
+		}
 		return true
 	}
 
