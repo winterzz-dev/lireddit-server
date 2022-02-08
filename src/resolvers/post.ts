@@ -43,13 +43,13 @@ export default class PostResolver {
 	}
 
 	@Mutation(() => Boolean)
-	// @UseMiddleware(isAuth)
+	@UseMiddleware(isAuth)
 	async vote(
 		@Arg('postId', () => Int) postId: number,
 		@Arg('value', () => Int) value: number,
 		@Ctx() {req}: MyContext
 	) {
-		const userId = 1 || req.session.userId
+		const userId = req.session.userId
 		const isUpdoot = value !== -1
 		const computedValue = isUpdoot ? 1 : -1
 
