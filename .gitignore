@@ -2,3 +2,7 @@ node_modules
 .idea
 dist
 *.env
+docker-compose.yaml
+postgres-volume
+src/migrations
+storage
